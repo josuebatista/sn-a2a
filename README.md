@@ -1,18 +1,27 @@
 # ServiceNow A2A CLI
 
-A simple command-line interface to communicate with remotely with ServiceNoW AI agents using the A2A (Agent-to-Agent) protocol.
+A command-line interface to communicate remotely with ServiceNow AI Agents using the A2A (Agent-to-Agent) protocol.
+
+Based on [Vamsee Lakamsani's sn-a2a](https://github.com/ServiceNow/sn-a2a).
+
+## Current Status: Blocked
+
+There is a **known issue** with ServiceNow's A2A V2 implementation that prevents successful communication. See [Known Issues](#known-issues) below.
 
 ## Features
 
-- Direct A2A protocol communication with ServiceNow AI Agents running in a Glide instance.
-- OAuth token refresh function for secure authentication
-- Simple setup using UV package manager
+- Direct A2A protocol communication with ServiceNow AI Agents
+- OAuth token refresh for secure authentication
+- Local webhook server for push notifications (FastAPI/uvicorn)
+- ngrok integration for public webhook URLs
+- Debug mode for verbose logging
 
 ## Prerequisites
 
 - Python 3.11 or higher
 - UV package manager
-- ServiceNow instance with A2A agent and [OAuth](https://www.servicenow.com/docs/bundle/zurich-platform-security/page/integrate/authentication/concept/new-inbound-integrations.html) configured
+- ngrok (for push notification webhook)
+- ServiceNow instance with A2A agent configured
 - OAuth credentials with `a2aauthscope` permission
 
 ## Setup
@@ -33,53 +42,86 @@ A simple command-line interface to communicate with remotely with ServiceNoW AI 
    ```bash
    uv sync
    ```
-4. **Run it**:
-* CLI loop: `uv run python main.py`
 
-Output with a prompt like `Categorize ITSM Incident INC0019104` (AI Agent sysid `900cf9f09f4f1210579fa9e9d90a1c4a`) looks roughly like this: 
+4. **Install and configure ngrok**:
+   ```bash
+   # Windows
+   winget install ngrok.ngrok
 
+   # Configure auth token (get from https://dashboard.ngrok.com/get-started/your-authtoken)
+   ngrok config add-authtoken YOUR_AUTH_TOKEN
+   ```
+
+## Usage
+
+1. **Start ngrok tunnel** (Terminal 1):
+   ```bash
+   ngrok http 5000
+   ```
+
+2. **Run the CLI** (Terminal 2):
+   ```bash
+   uv run python main.py --webhook-url https://YOUR-NGROK-URL.ngrok-free.app/webhook
+   ```
+
+### Command Line Options
+
+| Option | Description |
+|--------|-------------|
+| `--agent-id` | Agent sys_id (overrides `A2A_CLIENT_AGENT_ID` in .env) |
+| `--webhook-url` | Public webhook URL (e.g., ngrok URL + `/webhook`) |
+| `--port` | Local port for webhook server (default: 5000) |
+| `--no-push` | Disable push notifications (synchronous mode) |
+| `--debug` | Enable verbose debug logging |
+
+### Debug Mode
+
+```bash
+uv run python main.py --webhook-url https://YOUR-NGROK-URL.ngrok-free.app/webhook --debug
 ```
-Using existing auth token from A2A_CLIENT_AUTH_TOKEN...
 
-Connecting to Categorize ITSM Incident Agent...
-Connected to agent: Categorize ITSM incident AI agent
-Description: Categorize ITSM incident AI agent assigns appropriate category and subcategory to an incident.
+Debug output includes:
+- HTTP request/response details
+- Agent card JSON
+- Message objects sent and received
+- Task state transitions
 
-Type your question (e.g., 'Categorize ITSM Incident INC0019104')
-Type 'quit' or 'exit' to end the session
+## Known Issues
 
-You: Categorize ITSM Incident INC0019104
+### Push Notification Contradiction (Blocker)
 
-Agent: **Recommended incident (INC0019104) categorization details:**
-- Category: Software (Reason: The incident is about being unable to log in to the rewards/benefits portal, which is a software/application access issue.)
-- Subcategory: Not determined (Reason: None of the available subcategories—Email or Operating System—directly match the portal login issue.)
-Task has been completed
-```
+ServiceNow's A2A V2 implementation has contradictory behavior:
 
-## Security Notes
+| Scenario | Error |
+|----------|-------|
+| **With** push config | `-32003: "Push Notification is not supported"` |
+| **Without** push config | `-32602: "Push Notification URL is required for asynchronous requests"` |
 
-- **Never commit `.env` files** - they contain secrets!
-- The `.gitignore` file is configured to exclude `.env` files
-- Use `.env.example` as a template (contains no real credentials)
-- Refresh tokens are valid for 100 days; access tokens expire in 30 minutes
+The agent card advertises `pushNotifications: true` but rejects all `pushNotificationConfig` payloads. This is a **server-side issue** that needs to be resolved by ServiceNow.
 
+See [CLAUDE.md](./CLAUDE.md) for detailed findings.
 
-## Future Testing with Push notifications
+## Alternative: A2A Inspector
 
-Use the **A2A Inspector** web-based tool instead, which supports push notifications via ngrok:
-
-See [TESTING_WITH_A2A_INSPECTOR.md](./TESTING_WITH_A2A_INSPECTOR.md) for complete instructions.
+The A2A Inspector web tool may work differently. See [TESTING_WITH_A2A_INSPECTOR.md](./TESTING_WITH_A2A_INSPECTOR.md).
 
 ## Files in This Project
 
-- `main.py` - Simple CLI (blocked by push notification requirement)
-- `.env.example` - Template for environment variables (no secrets)
-- `.env` - Your actual credentials (**git-ignored**)
-- `TESTING_WITH_A2A_INSPECTOR.md` - How to use the web-based inspector
+| File | Description |
+|------|-------------|
+| `main.py` | CLI with webhook server (blocked by push notification issue) |
+| `.env.example` | Template for environment variables |
+| `.env` | Your credentials (**git-ignored**) |
+| `CLAUDE.md` | Development notes and known issues |
+| `TESTING_WITH_A2A_INSPECTOR.md` | A2A Inspector setup guide |
+
+## Security Notes
+
+- **Never commit `.env` files** - they contain secrets
+- The `.gitignore` file excludes `.env` files
+- Refresh tokens are valid for 100 days; access tokens expire in 30 minutes
 
 ## Contributing
-
-When contributing, remember:
 
 1. Never commit `.env` files
 2. Use environment variables for all credentials

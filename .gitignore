@@ -51,6 +51,9 @@ htmlcov/
 # UV
 uv.lock
 
+# Temporary files and output
+tmp/
+
 #misc
 AIAgentProviderA2AUtil.js
 test-curl.txt
