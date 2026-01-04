@@ -86,6 +86,35 @@ Debug output includes:
 - Message objects sent and received
 - Task state transitions
 
+## Getting OAuth Tokens
+
+The `get_refresh_token.py` script helps you obtain OAuth tokens using the Resource Owner Password Credentials (ROPC) flow. This is useful when:
+
+- Setting up the project for the first time
+- Your refresh token has expired
+- You need to regenerate tokens after credential changes
+
+### Usage
+
+```bash
+uv run python get_refresh_token.py
+```
+
+The script will:
+1. Read `A2A_CLIENT_BASE_URL`, `A2A_CLIENT_ID`, and `A2A_CLIENT_SECRET` from your `.env` file (or prompt if missing)
+2. Ask for your ServiceNow username and password
+3. Request tokens from ServiceNow's OAuth endpoint
+4. Output both `A2A_CLIENT_REFRESH_TOKEN` and `A2A_CLIENT_AUTH_TOKEN` values to copy into your `.env`
+
+### Token Expiration
+
+| Token Type | Default Expiration |
+|------------|-------------------|
+| Access Token | 30 minutes |
+| Refresh Token | 100 days |
+
+**Note:** Access tokens expire frequently. The main script will automatically use the refresh token to obtain new access tokens. If you're getting authentication errors, run `get_refresh_token.py` to generate fresh tokens.
+
 ## Known Issues
 
 ### Push Notification Contradiction (Blocker)
@@ -110,6 +139,7 @@ The A2A Inspector web tool may work differently. See [TESTING_WITH_A2A_INSPECTOR
 | File | Description |
 |------|-------------|
 | `main.py` | CLI with webhook server (blocked by push notification issue) |
+| `get_refresh_token.py` | Helper script to obtain OAuth tokens via ROPC flow |
 | `.env.example` | Template for environment variables |
 | `.env` | Your credentials (**git-ignored**) |
 | `CLAUDE.md` | Development notes and known issues |
